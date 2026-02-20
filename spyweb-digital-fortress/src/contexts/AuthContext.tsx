@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface User {
   id: string;
@@ -15,46 +15,48 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Hardcoded credentials for demonstration
-const ADMIN_CREDENTIALS = {
-  username: 'admin',
-  password: 'spyweb2026',
-  user: {
-    id: '1',
-    username: 'admin',
-    email: 'admin@spyweb.tech',
-  },
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  // Check for stored auth on mount
+  // Load user from localStorage on refresh
   useEffect(() => {
-    const storedUser = localStorage.getItem('spyweb_admin_user');
+    const storedUser = localStorage.getItem("spyweb_admin_user");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
   }, []);
 
+  // 🔥 LOGIN USING BACKEND API
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const API_URL = import.meta.env.VITE_API_URL;
 
-    if (
-      username === ADMIN_CREDENTIALS.username &&
-      password === ADMIN_CREDENTIALS.password
-    ) {
-      setUser(ADMIN_CREDENTIALS.user);
-      localStorage.setItem('spyweb_admin_user', JSON.stringify(ADMIN_CREDENTIALS.user));
+      const response = await fetch(`${API_URL}/api/clients/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = await response.json();
+
+      setUser(data.user);
+      localStorage.setItem("spyweb_admin_user", JSON.stringify(data.user));
       return true;
+    } catch (error) {
+      console.error("Login error:", error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('spyweb_admin_user');
+    localStorage.removeItem("spyweb_admin_user");
   };
 
   return (
@@ -73,8 +75,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
